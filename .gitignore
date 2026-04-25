@@ -1,0 +1,7 @@
+.venv/
+.env
+faiss_index/
+__pycache__/
+*.zip
+*.pdf
+*.pyc

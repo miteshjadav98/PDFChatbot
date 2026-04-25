@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+langchain
+langchain-openai
+langchain-ollama
+langchain-community
+faiss-cpu
+transformers
+sentence-transformers
+pypdf
+streamlit
+python-dotenv
+torch
+python-multipart
+requests
