@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import time
+import uuid
 from typing import List, Dict, Any
 
 # Set premium page config
@@ -12,6 +13,41 @@ st.set_page_config(
 
 # Backend URL
 BACKEND_URL = "http://localhost:8000"
+
+# --- Per-user session ID (persisted in URL query params to survive refresh) ---
+query_params = st.query_params
+if "session_id" in query_params:
+    # Restore session ID from URL on refresh
+    st.session_state.session_id = query_params["session_id"]
+elif "session_id" not in st.session_state:
+    # First visit — generate a new session ID and put it in the URL
+    st.session_state.session_id = str(uuid.uuid4())
+    st.query_params["session_id"] = st.session_state.session_id
+
+SESSION_HEADERS = {"X-Session-Id": st.session_state.session_id}
+
+# --- Load chat history from backend on first run (e.g. after refresh) ---
+if "messages" not in st.session_state:
+    try:
+        resp = requests.get(f"{BACKEND_URL}/history/load", headers=SESSION_HEADERS, timeout=3)
+        if resp.status_code == 200:
+            st.session_state.messages = resp.json().get("messages", [])
+        else:
+            st.session_state.messages = []
+    except Exception:
+        st.session_state.messages = []
+
+def _save_history():
+    """Save current chat messages to backend (best-effort)."""
+    try:
+        requests.post(
+            f"{BACKEND_URL}/history/save",
+            json={"messages": st.session_state.messages},
+            headers=SESSION_HEADERS,
+            timeout=3,
+        )
+    except Exception:
+        pass
 
 # Inject Custom CSS for Premium Design
 st.markdown("""
@@ -69,7 +105,57 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="premium-title">✨ MJ AI Document Explorer</h1>', unsafe_allow_html=True)
+# --- Header row: title on the left, clear button on the right ---
+header_left, header_right = st.columns([5, 1])
+with header_left:
+    st.markdown('<h1 class="premium-title">✨ MJ AI Document Explorer</h1>', unsafe_allow_html=True)
+with header_right:
+    st.write("")  # vertical spacer to align with title
+    if st.button("🗑️ Clear", help="Clear chat and end session"):
+        st.session_state.confirm_clear = True
+
+# --- Confirmation dialog ---
+if st.session_state.get("confirm_clear", False):
+    st.warning("⚠️ Are you sure? This will delete your uploaded documents and chat history.")
+    confirm_col1, confirm_col2 = st.columns(2)
+    with confirm_col1:
+        if st.button("✅ Yes", use_container_width=True):
+            try:
+                requests.post(f"{BACKEND_URL}/clear", headers=SESSION_HEADERS)
+            except Exception:
+                pass
+            st.session_state.messages = []
+            st.session_state.confirm_clear = False
+            st.session_state.session_ended = True
+            st.rerun()
+    with confirm_col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            st.session_state.confirm_clear = False
+            st.rerun()
+
+# --- Session ended screen ---
+if st.session_state.get("session_ended", False):
+    import streamlit.components.v1 as components
+    st.success("✅ Session cleared successfully. All uploaded documents and chat history have been deleted.")
+    st.info("You can safely close this tab now.")
+    # Attempt to close the browser tab via JavaScript
+    components.html(
+        """
+        <script>
+            // Try to close the tab — works if it was opened via JS or as a popup
+            window.close();
+        </script>
+        """,
+        height=0,
+    )
+    if st.button("💬 Start New Chat"):
+        st.session_state.session_id = str(uuid.uuid4())
+        st.query_params["session_id"] = st.session_state.session_id
+        st.session_state.session_ended = False
+        st.session_state.messages = []
+        st.rerun()
+    st.stop()  # Prevent the rest of the page from rendering
+
 st.markdown('<p class="subtitle">Upload your PDF securely and interact seamlessly with its knowledge.</p>', unsafe_allow_html=True)
 
 # File uploader
@@ -79,16 +165,13 @@ if uploaded_file is not None:
     if st.button("Process PDF"):
         with st.spinner("Processing PDF..."):
             files = {"file": (uploaded_file.name, uploaded_file, "application/pdf")}
-            response = requests.post(f"{BACKEND_URL}/upload", files=files)
+            response = requests.post(f"{BACKEND_URL}/upload", files=files, headers=SESSION_HEADERS)
             if response.status_code == 200:
                 st.success(response.json()["message"])
             else:
                 st.error(f"Error: {response.text}")
 
-# Chat interface
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
+# Render chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -107,7 +190,7 @@ if prompt := st.chat_input("Ask a question about the uploaded documents"):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            response = requests.get(f"{BACKEND_URL}/ask", params={"q": prompt})
+            response = requests.get(f"{BACKEND_URL}/ask", params={"q": prompt}, headers=SESSION_HEADERS)
             if response.status_code == 200:
                 data = response.json()
                 st.markdown(data["answer"])
@@ -119,3 +202,6 @@ if prompt := st.chat_input("Ask a question about the uploaded documents"):
                 })
             else:
                 st.error(f"Error: {response.text}")
+    
+    # Persist chat history to backend after each exchange
+    _save_history()

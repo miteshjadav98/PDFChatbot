@@ -11,3 +11,18 @@ class AskResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+class ClearResponse(BaseModel):
+    message: str
+    session_id: str
+
+class SaveHistoryRequest(BaseModel):
+    messages: List[Dict[str, Any]]
+
+class SaveHistoryResponse(BaseModel):
+    message: str
+    session_id: str
+
+class LoadHistoryResponse(BaseModel):
+    messages: List[Dict[str, Any]]
+    session_id: str

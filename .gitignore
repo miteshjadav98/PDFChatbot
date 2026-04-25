@@ -1,6 +1,7 @@
 .venv/
 .env
 faiss_index/
+session_stores/
 __pycache__/
 *.zip
 *.pdf

@@ -10,8 +10,10 @@ from typing import List
 from langchain_core.documents import Document
 
 class RAGService:
-    def __init__(self):
+    def __init__(self, vector_store_path: str = None):
         self.config = Config()
+        # Use the provided session-specific path, or fall back to config default
+        self._vector_store_path = vector_store_path or self.config.VECTOR_STORE_PATH
         self.embedding_manager = None
         self.vectorstore_manager = None
         self.pipeline = None
@@ -23,7 +25,7 @@ class RAGService:
         self.embedding_manager = EmbeddingManager(self.config.EMBEDDING_MODEL)
         self.vectorstore_manager = VectorStoreManager(
             self.embedding_manager,
-            self.config.VECTOR_STORE_PATH,
+            self._vector_store_path,
         )
         self.pipeline = RAGPipeline(self.vectorstore_manager)
 
