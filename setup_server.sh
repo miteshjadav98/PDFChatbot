@@ -65,6 +65,9 @@ cat <<EOF | sudo tee /etc/nginx/sites-available/chatbot
 server {
     listen 80;
     server_name chatbot.miteklabs.tech;
+    
+    # Allow large PDF uploads
+    client_max_body_size 100M;
 
     location / {
         proxy_pass http://localhost:8501;
