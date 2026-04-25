@@ -29,10 +29,11 @@ After=network.target
 
 [Service]
 User=$USER
-WorkingDirectory=$APP_DIR/backend
+WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/venv/bin"
+Environment="PYTHONPATH=$APP_DIR"
 EnvironmentFile=$APP_DIR/.env
-ExecStart=$APP_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+ExecStart=$APP_DIR/venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
 Restart=always
 
 [Install]
