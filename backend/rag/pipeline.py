@@ -3,34 +3,22 @@ from langchain_core.output_parsers import StrOutputParser
 from backend.rag.llm import get_llm
 from backend.rag.vectorstore import VectorStoreManager
 
-# Strict grounding prompt: forces the LLM to answer ONLY from the provided
-# PDF context and produce grammatically correct, well-structured responses.
-_SYSTEM_TEMPLATE = """\
-You are a helpful document assistant. You MUST follow these rules strictly:
+import json
+import os
 
-1. Answer the question ONLY using the provided context below. The context comes \
-from uploaded PDF documents.
-2. Do NOT use any prior knowledge, training data, or information outside the \
-provided context. Every fact in your answer must be directly supported by the context.
-3. If the context does not contain enough information to answer the question, \
-respond ONLY with: "I'm sorry, the uploaded documents do not contain information \
-related to your question."
-4. Present your answer in a clear, grammatically correct, and well-structured \
-manner. Use proper punctuation, complete sentences, and organized paragraphs.
-5. Do NOT fabricate, speculate, or infer information that is not explicitly \
-stated in the context.
+# Load prompts from prompt.json
+PROMPT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompt.json")
 
-Context from uploaded PDF documents:
-{context}
+try:
+    with open(PROMPT_FILE, "r") as f:
+        _prompts = json.load(f)
+        _SYSTEM_TEMPLATE = _prompts.get("system_prompt", "")
+        _NO_CONTEXT_REPLY = _prompts.get("no_context_reply", "")
+except Exception as e:
+    # Fallback or error handling if needed
+    _SYSTEM_TEMPLATE = "{context}\n{question}"
+    _NO_CONTEXT_REPLY = "No context reply found."
 
-Question: {question}
-
-Answer:"""
-
-_NO_CONTEXT_REPLY = (
-    "I'm sorry, the uploaded documents do not contain information "
-    "related to your question. Please upload a relevant PDF first."
-)
 
 
 class RAGPipeline:
@@ -51,7 +39,9 @@ class RAGPipeline:
         docs = self.vectorstore_manager.search(question, k=3)
 
         # Guard: if no documents were retrieved, refuse to answer
-        if not docs:
+        # Bypass this guard if the user is just greeting the bot
+        is_greeting = question.lower().strip() in {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening"}
+        if not docs and not is_greeting:
             return {"answer": _NO_CONTEXT_REPLY, "sources": []}
 
         # Build a single context string from retrieved PDF chunks
