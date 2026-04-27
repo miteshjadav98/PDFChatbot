@@ -99,5 +99,22 @@ sudo systemctl restart chatbot-backend
 sudo systemctl restart chatbot-frontend
 sudo systemctl restart nginx
 
-echo "Deployment complete! Your chatbot should now be live at http://chatbot.miteklabs.tech"
-echo "Note: Make sure your DNS records for chatbot.miteklabs.tech point to this server's IP ($168.144.95.233)."
+# 8. Setup SSL with Let's Encrypt (Certbot)
+echo "Setting up SSL with Let's Encrypt..."
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obtain SSL certificate and auto-configure Nginx for HTTPS
+# --non-interactive: don't prompt for input
+# --agree-tos: agree to Let's Encrypt TOS
+# --redirect: automatically redirect HTTP to HTTPS
+sudo certbot --nginx -d chatbot.miteklabs.tech \
+    --non-interactive \
+    --agree-tos \
+    --register-unsafely-without-email \
+    --redirect
+
+echo "Verifying SSL auto-renewal..."
+sudo certbot renew --dry-run
+
+echo "Deployment complete! Your chatbot should now be live at https://chatbot.miteklabs.tech"
+echo "Note: Make sure your DNS records for chatbot.miteklabs.tech point to this server's IP."
