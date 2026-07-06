@@ -1,0 +1,15 @@
+.venv/
+.git/
+.env
+__pycache__/
+*.pyc
+*.pyo
+faiss_index/
+session_stores/
+*.pdf
+*.zip
+.gitignore
+README.md
+setup_server.sh
+DEPLOY.md
+deploy-azure.ps1

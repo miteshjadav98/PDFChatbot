@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import requests
 import time
@@ -11,8 +12,8 @@ st.set_page_config(
     layout="centered"
 )
 
-# Backend URL
-BACKEND_URL = "http://localhost:8000"
+# Backend URL — configurable via env var for container deployment
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # --- Per-user session ID (persisted in URL query params to survive refresh) ---
 query_params = st.query_params
